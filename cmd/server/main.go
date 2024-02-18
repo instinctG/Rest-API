@@ -1,15 +1,28 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/instinctG/Rest-API/Internal/transport"
+	"net/http"
+)
 
 // App - the struct wjich contains things like
 // pointers to database connections
 type App struct {
 }
 
-// Run - handles the startup of our application
+// Run - sets up our application
 func (app *App) Run() error {
 	fmt.Println("Setting up our App")
+
+	handler := transport.NewHandler()
+	handler.SetupRoutes()
+
+	if err := http.ListenAndServe(":8080", handler.Router); err != nil {
+		fmt.Println("Failed to set up server")
+		return err
+	}
+
 	return nil
 }
 
