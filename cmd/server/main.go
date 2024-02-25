@@ -1,25 +1,53 @@
 package main
 
 import (
-	"fmt"
-	"github.com/instinctG/Rest-API/Internal/transport"
+	coment "github.com/instinctG/Rest-API/internal/comment"
+	"github.com/instinctG/Rest-API/internal/config"
+	http2 "github.com/instinctG/Rest-API/internal/transport/http"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/instinctG/Rest-API/internal/database"
 	"net/http"
 )
 
-// App - the struct wjich contains things like
-// pointers to database connections
+// App - the struct which contains information about our app
 type App struct {
+	Name    string
+	Version string
 }
 
 // Run - sets up our application
 func (app *App) Run() error {
-	fmt.Println("Setting up our App")
+	log.SetFormatter(&log.JSONFormatter{})
 
-	handler := transport.NewHandler()
+	log.WithFields(log.Fields{
+		"AppName":    app.Name,
+		"AppVersion": app.Version,
+	}).Info("Setting Up Our App")
+	cfg, err := config.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err := database.NewDataBase(database.Config{
+		Host:     cfg.Config.Host,
+		Port:     cfg.Config.Port,
+		User:     cfg.Config.User,
+		DBName:   cfg.Config.DBName,
+		Password: cfg.Config.Password,
+		SSLMode:  cfg.Config.SSLMode,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	commentService := coment.NewService(db)
+
+	handler := http2.NewHandler(commentService)
 	handler.SetupRoutes()
 
 	if err := http.ListenAndServe(":8080", handler.Router); err != nil {
-		fmt.Println("Failed to set up server")
+		log.Error("Failed to set up server")
 		return err
 	}
 
@@ -28,9 +56,12 @@ func (app *App) Run() error {
 
 // our main entrypoint for the application
 func main() {
-	app := App{}
+	app := App{
+		Name:    "Comment API",
+		Version: "1.0.0",
+	}
 	if err := app.Run(); err != nil {
-		fmt.Println("Error Starting Up")
-		fmt.Println(err)
+		log.Error("Error Starting Up")
+		log.Fatal(err)
 	}
 }
